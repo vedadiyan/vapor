@@ -43,7 +43,7 @@ func (srv *server) Listen(addr net.Addr) error {
 	return nil
 }
 
-func (srv *server) Shutdown(ctx context.Context) error {
+func (srv *server) Shutdown(_ context.Context) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
 	if srv.server == nil {
