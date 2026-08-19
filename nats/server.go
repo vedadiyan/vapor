@@ -16,7 +16,7 @@ type (
 	server struct {
 		server        *nats.Conn
 		options       []nats.Option
-		subscriptions chan func(*nats.Conn)
+		subscriptions []func(*nats.Conn)
 		mut           sync.Mutex
 		disposed      bool
 	}
@@ -41,11 +41,9 @@ func (srv *server) Listen(addr net.Addr) error {
 		return err
 	}
 	srv.server = conn
-	go func() {
-		for fn := range srv.subscriptions {
-			fn(conn)
-		}
-	}()
+	for _, fn := range srv.subscriptions {
+		fn(conn)
+	}
 	return nil
 }
 
@@ -59,22 +57,22 @@ func (srv *server) Shutdown(ctx context.Context) error {
 		srv.mut.Unlock()
 		return fmt.Errorf("server is already disposed")
 	}
+
 	srv.disposed = true
-	close(srv.subscriptions)
+	conn := srv.server
 	srv.mut.Unlock()
 
 	done := make(chan error, 1)
-
 	go func() {
-		done <- srv.server.Drain()
+		done <- conn.Drain()
 	}()
 
 	select {
 	case err := <-done:
-		srv.server.Close()
+		conn.Close()
 		return err
 	case <-ctx.Done():
-		srv.server.Close()
+		conn.Close()
 		return ctx.Err()
 	}
 }
@@ -85,7 +83,7 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vap
 	if srv.disposed {
 		return fmt.Errorf("server is disposed and cannot receive subscriptions")
 	}
-	srv.subscriptions <- func(conn *nats.Conn) {
+	subsFn := func(conn *nats.Conn) {
 		_, _ = conn.Subscribe(string(pattern), func(msg *nats.Msg) {
 			go func() {
 				out := &nats.Msg{
@@ -109,6 +107,10 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vap
 				_ = msg.RespondMsg(out)
 			}()
 		})
+	}
+	srv.subscriptions = append(srv.subscriptions, subsFn)
+	if srv.server != nil {
+		subsFn(srv.server)
 	}
 	return nil
 }
