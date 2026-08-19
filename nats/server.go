@@ -16,7 +16,7 @@ type (
 	server struct {
 		server        *nats.Conn
 		options       []nats.Option
-		subscriptions []func(*nats.Conn)
+		subscriptions []func(*nats.Conn) error
 		mut           sync.Mutex
 	}
 
@@ -36,10 +36,13 @@ func (srv *server) Listen(addr net.Addr) error {
 	if err != nil {
 		return err
 	}
-	srv.server = conn
 	for _, fn := range srv.subscriptions {
-		fn(conn)
+		if err := fn(conn); err != nil {
+			conn.Close()
+			return err
+		}
 	}
+	srv.server = conn
 	return nil
 }
 
@@ -62,8 +65,8 @@ func (srv *server) Shutdown(_ context.Context) error {
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
-	subsFn := func(conn *nats.Conn) {
-		_, _ = conn.Subscribe(string(pattern), func(msg *nats.Msg) {
+	subsFn := func(conn *nats.Conn) error {
+		_, err := conn.Subscribe(string(pattern), func(msg *nats.Msg) {
 			go func() {
 				out := &nats.Msg{
 					Header: make(nats.Header),
@@ -86,10 +89,11 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vap
 				_ = msg.RespondMsg(out)
 			}()
 		})
+		return err
 	}
 	srv.subscriptions = append(srv.subscriptions, subsFn)
 	if srv.server != nil {
-		subsFn(srv.server)
+		return subsFn(srv.server)
 	}
 	return nil
 }
