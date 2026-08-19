@@ -45,7 +45,7 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	if srv.server == nil {
 		return nil
 	}
-
+	srv.server = nil
 	return srv.server.Shutdown(ctx)
 }
 
