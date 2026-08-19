@@ -34,7 +34,7 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	return srv.server.Shutdown(ctx)
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
 		res, err := fn(newRequest(r))
 		if err != nil {
@@ -52,6 +52,7 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vap
 
 		_, _ = w.Write(res.Content())
 	})
+	return nil
 }
 
 func (r request) Content() ([]byte, error) {
