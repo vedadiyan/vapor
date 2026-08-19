@@ -61,7 +61,7 @@ func (srv *server) Shutdown(ctx context.Context) error {
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
 	srv.subscriptions <- func(conn *nats.Conn) {
-		_, _ = srv.server.Subscribe(string(pattern), func(msg *nats.Msg) {
+		_, _ = conn.Subscribe(string(pattern), func(msg *nats.Msg) {
 			go func() {
 				out := &nats.Msg{
 					Header: make(nats.Header),
