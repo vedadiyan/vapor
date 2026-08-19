@@ -2,9 +2,11 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"sync"
 	"unsafe"
 
 	"github.com/vedadiyan/vapor"
@@ -13,7 +15,8 @@ import (
 type (
 	server struct {
 		mux    http.ServeMux
-		server http.Server
+		server *http.Server
+		mut    sync.Mutex
 	}
 
 	request struct {
@@ -22,15 +25,27 @@ type (
 )
 
 func (srv *server) Listen(addr net.Addr) error {
-	ln, err := net.Listen("tcp", addr.String())
-	if err != nil {
-		return err
+	srv.mut.Lock()
+	defer srv.mut.Unlock()
+	if srv.server != nil {
+		return fmt.Errorf("server is already running")
 	}
-
-	return srv.server.Serve(ln)
+	server := &http.Server{
+		Addr:    addr.String(),
+		Handler: &srv.mux,
+	}
+	srv.server = server
+	go srv.server.ListenAndServe()
+	return nil
 }
 
 func (srv *server) Shutdown(ctx context.Context) error {
+	srv.mut.Lock()
+	defer srv.mut.Unlock()
+	if srv.server == nil {
+		return nil
+	}
+
 	return srv.server.Shutdown(ctx)
 }
 
