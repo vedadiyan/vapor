@@ -1,8 +1,11 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"sync"
 	"unsafe"
@@ -61,7 +64,7 @@ func (srv *server) Shutdown(_ context.Context) error {
 	return nil
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vapor.Message, error)) error {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vapor.Status, vapor.Message)) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
 	subsFn := func(conn *nats.Conn) error {
@@ -70,24 +73,20 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vap
 				out := &nats.Msg{
 					Header: make(nats.Header),
 				}
-				res, err := fn(newRequest(msg))
-				if err != nil {
-					out.Data = []byte(err.Error())
-					_ = msg.RespondMsg(out)
-					return
-				}
-				data, err := res.Content()
-				if err != nil {
-					out.Data = []byte(err.Error())
-					_ = msg.RespondMsg(out)
-					return
-				}
+				_, message := fn(newRequest(msg))
 
-				for key, values := range res.Headers() {
+				for key, values := range message.Headers() {
 					for _, value := range values {
 						out.Header.Add(key, value)
 					}
 				}
+
+				data, err := vapor.ReadIfNotNil(message.Content())
+				if err != nil {
+					log.Println(err.Error())
+					out.Header.Set("X-Error", "true")
+				}
+
 				out.Data = data
 				_ = msg.RespondMsg(out)
 			}()
@@ -101,8 +100,8 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vap
 	return nil
 }
 
-func (r request) Content() ([]byte, error) {
-	return r.Msg.Data, nil
+func (r request) Content() io.ReadCloser {
+	return io.NopCloser(bytes.NewReader(r.Data))
 }
 
 func (r request) Context() context.Context {
