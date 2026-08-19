@@ -10,6 +10,6 @@ type (
 	Server  interface {
 		Listen(addr net.Addr) error
 		Shutdown(context.Context) error
-		HandleFunc(Pattern, func(Request) (Response, error)) error
+		HandleFunc(Pattern, func(Message) (Message, error)) error
 	}
 )

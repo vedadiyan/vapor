@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"unsafe"
 
@@ -62,7 +61,7 @@ func (srv *server) Shutdown(_ context.Context) error {
 	return nil
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vapor.Message, error)) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
 	subsFn := func(conn *nats.Conn) error {
@@ -73,19 +72,23 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vap
 				}
 				res, err := fn(newRequest(msg))
 				if err != nil {
-					out.Header.Set("Status", "500")
 					out.Data = []byte(err.Error())
 					_ = msg.RespondMsg(out)
 					return
 				}
-				out.Header.Set("Status", strconv.Itoa(res.Status()))
+				data, err := res.Content()
+				if err != nil {
+					out.Data = []byte(err.Error())
+					_ = msg.RespondMsg(out)
+					return
+				}
 
 				for key, values := range res.Headers() {
 					for _, value := range values {
 						out.Header.Add(key, value)
 					}
 				}
-				out.Data = res.Content()
+				out.Data = data
 				_ = msg.RespondMsg(out)
 			}()
 		})
@@ -106,14 +109,22 @@ func (r request) Context() context.Context {
 	return r.ctx
 }
 
+func (r request) Type() string {
+	return r.Header.Get("X-Type")
+}
+
+func (r request) Subject() string {
+	return r.Msg.Subject
+}
+
+func (r request) ID() string {
+	return r.Header.Get("X-ID")
+}
+
 func (r request) Headers() vapor.KeyValue {
 	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
 }
 
-func (r request) Trailers() vapor.KeyValue {
-	return nil
-}
-
-func newRequest(r *nats.Msg) vapor.Request {
+func newRequest(r *nats.Msg) vapor.Message {
 	return &request{Msg: r, ctx: context.Background()}
 }

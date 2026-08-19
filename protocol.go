@@ -4,15 +4,12 @@ import "context"
 
 type (
 	KeyValue map[string][]string
-	Request  interface {
+	Message  interface {
 		Content() ([]byte, error)
 		Context() context.Context
-		Headers() KeyValue
-		Trailers() KeyValue
-	}
-	Response interface {
-		Status() int
-		Content() []byte
+		Subject() string
+		Type() string
+		ID() string
 		Headers() KeyValue
 	}
 )

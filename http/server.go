@@ -50,9 +50,15 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	return ref.Shutdown(ctx)
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vapor.Message, error)) error {
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
 		res, err := fn(newRequest(r))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		content, err := res.Content()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -64,9 +70,8 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vap
 			}
 		}
 
-		w.WriteHeader(res.Status())
-
-		_, _ = w.Write(res.Content())
+		w.WriteHeader(200)
+		_, _ = w.Write(content)
 	})
 	return nil
 }
@@ -79,6 +84,18 @@ func (r request) Context() context.Context {
 	return r.Request.Context()
 }
 
+func (r request) Type() string {
+	return r.Header.Get("X-Type")
+}
+
+func (r request) Subject() string {
+	return r.Header.Get("X-Subject")
+}
+
+func (r request) ID() string {
+	return r.Header.Get("X-ID")
+}
+
 func (r request) Headers() vapor.KeyValue {
 	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
 }
@@ -87,6 +104,6 @@ func (r request) Trailers() vapor.KeyValue {
 	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Trailer))
 }
 
-func newRequest(r *http.Request) vapor.Request {
+func newRequest(r *http.Request) vapor.Message {
 	return &request{Request: r}
 }
