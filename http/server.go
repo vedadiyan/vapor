@@ -44,9 +44,10 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	if srv.server == nil {
 		return nil
 	}
+	ref := srv.server
 	srv.server = nil
 	srv.mut.Unlock()
-	return srv.server.Shutdown(ctx)
+	return ref.Shutdown(ctx)
 }
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
