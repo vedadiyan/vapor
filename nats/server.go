@@ -18,7 +18,6 @@ type (
 		options       []nats.Option
 		subscriptions []func(*nats.Conn)
 		mut           sync.Mutex
-		disposed      bool
 	}
 
 	request struct {
@@ -30,9 +29,6 @@ type (
 func (srv *server) Listen(addr net.Addr) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
-	if srv.disposed {
-		return fmt.Errorf("server is disposed and cannot be restarted")
-	}
 	if srv.server != nil {
 		return fmt.Errorf("server is already running")
 	}
@@ -49,18 +45,13 @@ func (srv *server) Listen(addr net.Addr) error {
 
 func (srv *server) Shutdown(ctx context.Context) error {
 	srv.mut.Lock()
+	defer srv.mut.Unlock()
 	if srv.server == nil {
-		srv.mut.Unlock()
 		return nil
 	}
-	if srv.disposed {
-		srv.mut.Unlock()
-		return fmt.Errorf("server is already disposed")
-	}
 
-	srv.disposed = true
 	conn := srv.server
-	srv.mut.Unlock()
+	srv.server = nil
 
 	done := make(chan error, 1)
 	go func() {
@@ -80,9 +71,6 @@ func (srv *server) Shutdown(ctx context.Context) error {
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
-	if srv.disposed {
-		return fmt.Errorf("server is disposed and cannot receive subscriptions")
-	}
 	subsFn := func(conn *nats.Conn) {
 		_, _ = conn.Subscribe(string(pattern), func(msg *nats.Msg) {
 			go func() {
