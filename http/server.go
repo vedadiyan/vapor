@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"unsafe"
 
@@ -51,9 +52,9 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	return ref.Shutdown(ctx)
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vapor.Status, vapor.Message)) error {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message, ...vapor.Option) (vapor.Status, vapor.Message)) error {
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
-		status, message := fn(newRequest(r))
+		status, message := fn(newRequest(r), WithRequestURI(r.URL))
 
 		for key, values := range message.Headers() {
 			for _, value := range values {
@@ -86,7 +87,7 @@ func (r request) Type() string {
 }
 
 func (r request) Subject() string {
-	return r.Header.Get("X-Subject")
+	return r.Pattern
 }
 
 func (r request) ID() string {
@@ -99,4 +100,10 @@ func (r request) Headers() vapor.KeyValue {
 
 func newRequest(r *http.Request) vapor.Message {
 	return &request{Request: r}
+}
+
+func WithRequestURI(uri *url.URL) vapor.Option {
+	return func(o *vapor.Options) {
+		o.URI = uri
+	}
 }
