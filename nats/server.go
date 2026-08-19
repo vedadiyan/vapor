@@ -48,13 +48,13 @@ func (srv *server) Listen(addr net.Addr) error {
 
 func (srv *server) Shutdown(_ context.Context) error {
 	srv.mut.Lock()
-	defer srv.mut.Unlock()
 	if srv.server == nil {
 		return nil
 	}
 
 	conn := srv.server
 	srv.server = nil
+	srv.mut.Unlock()
 	if err := conn.Drain(); err != nil {
 		return err
 	}

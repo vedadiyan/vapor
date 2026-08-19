@@ -41,11 +41,11 @@ func (srv *server) Listen(addr net.Addr) error {
 
 func (srv *server) Shutdown(ctx context.Context) error {
 	srv.mut.Lock()
-	defer srv.mut.Unlock()
 	if srv.server == nil {
 		return nil
 	}
 	srv.server = nil
+	srv.mut.Unlock()
 	return srv.server.Shutdown(ctx)
 }
 
