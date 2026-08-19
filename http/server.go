@@ -36,7 +36,7 @@ func (srv *server) Listen(addr net.Addr) error {
 		Handler: &srv.mux,
 	}
 	srv.server = server
-	go srv.server.ListenAndServe()
+	go server.ListenAndServe()
 	return nil
 }
 
