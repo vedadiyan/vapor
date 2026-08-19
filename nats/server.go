@@ -52,20 +52,11 @@ func (srv *server) Shutdown(ctx context.Context) error {
 
 	conn := srv.server
 	srv.server = nil
-
-	done := make(chan error, 1)
-	go func() {
-		done <- conn.Drain()
-	}()
-
-	select {
-	case err := <-done:
-		conn.Close()
+	if err := conn.Drain(); err != nil {
 		return err
-	case <-ctx.Done():
-		conn.Close()
-		return ctx.Err()
 	}
+	conn.Close()
+	return nil
 }
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) (vapor.Response, error)) error {
