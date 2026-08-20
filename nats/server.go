@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
-	"unsafe"
 
 	"github.com/nats-io/nats.go"
 	"github.com/vedadiyan/vapor"
@@ -24,9 +24,11 @@ type (
 
 	request struct {
 		*nats.Msg
-		tokens  map[string]int
-		pattern vapor.Pattern
-		ctx     context.Context
+		tokens      map[string]int
+		pattern     vapor.Pattern
+		ctx         context.Context
+		header      vapor.KeyValue
+		headersOnce sync.Once
 	}
 )
 
@@ -115,47 +117,55 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 	return nil
 }
 
-func (r request) Content() io.ReadCloser {
+func (r *request) Content() io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(r.Data))
 }
 
-func (r request) Context() context.Context {
+func (r *request) Context() context.Context {
 	return r.ctx
 }
 
-func (r request) Type() vapor.Type {
+func (r *request) Type() vapor.Type {
 	if len(r.Msg.Reply) != 0 {
 		return vapor.TypeRequiresReply
 	}
 	return vapor.TypePublishOnly
 }
 
-func (r request) Subject() string {
+func (r *request) Subject() string {
 	return r.Msg.Subject
 }
 
-func (r request) Method() string {
+func (r *request) Method() string {
 	return r.Msg.Header.Get("X-Method")
 }
 
-func (r request) Params() vapor.ParamStore {
+func (r *request) Params() vapor.ParamStore {
 	return getParams(r.Msg.Subject, r.tokens)
 }
 
-func (r request) Pattern() vapor.Pattern {
+func (r *request) Pattern() vapor.Pattern {
 	return r.pattern
 }
 
-func (r request) QueryString() vapor.QueryString {
+func (r *request) QueryString() vapor.QueryString {
 	return vapor.QueryString(r.Msg.Header.Get("X-Q"))
 }
 
-func (r request) ID() string {
+func (r *request) ID() string {
 	return r.Header.Get("X-ID")
 }
 
-func (r request) Headers() vapor.KeyValue {
-	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
+func (r *request) Headers() vapor.KeyValue {
+	r.headersOnce.Do(func() {
+		r.header = make(vapor.KeyValue, len(r.Msg.Header))
+
+		for key, values := range r.Msg.Header {
+			r.header[strings.ToLower(key)] = append([]string(nil), values...)
+		}
+	})
+
+	return r.header
 }
 
 func newRequest(r *nats.Msg, patten vapor.Pattern, tokens map[string]int) vapor.Request {
