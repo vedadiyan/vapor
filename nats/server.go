@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"unsafe"
@@ -24,8 +23,9 @@ type (
 
 	request struct {
 		*nats.Msg
-		tokens map[string]int
-		ctx    context.Context
+		tokens  map[string]int
+		pattern vapor.Pattern
+		ctx     context.Context
 	}
 )
 
@@ -65,7 +65,7 @@ func (srv *server) Shutdown(_ context.Context) error {
 	return nil
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vapor.Status, vapor.Message)) error {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
 
@@ -76,21 +76,15 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Message) (vap
 				out := &nats.Msg{
 					Header: make(nats.Header),
 				}
-				_, message := fn(newRequest(msg, tokens))
+				res := fn(newRequest(msg, pattern, tokens))
 
-				for key, values := range message.Headers() {
+				for key, values := range res.Headers() {
 					for _, value := range values {
 						out.Header.Add(key, value)
 					}
 				}
 
-				data, err := vapor.ReadIfNotNil(message.Content())
-				if err != nil {
-					log.Println(err.Error())
-					out.Header.Set("X-Error", "true")
-				}
-
-				out.Data = data
+				out.Data = res.Content()
 				_ = msg.RespondMsg(out)
 			}()
 		})
@@ -127,6 +121,10 @@ func (r request) Params() vapor.ParamStore {
 	return getParams(r.Msg.Subject, r.tokens)
 }
 
+func (r request) Pattern() vapor.Pattern {
+	return r.pattern
+}
+
 func (r request) QueryString() vapor.QueryString {
 	return vapor.QueryString(r.Msg.Header.Get("X-Q"))
 }
@@ -139,6 +137,6 @@ func (r request) Headers() vapor.KeyValue {
 	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
 }
 
-func newRequest(r *nats.Msg, tokens map[string]int) vapor.Message {
-	return &request{Msg: r, tokens: tokens, ctx: context.Background()}
+func newRequest(r *nats.Msg, patten vapor.Pattern, tokens map[string]int) vapor.Request {
+	return &request{Msg: r, tokens: tokens, pattern: patten, ctx: context.Background()}
 }

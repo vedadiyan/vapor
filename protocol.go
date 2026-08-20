@@ -9,7 +9,7 @@ type (
 	KeyValue    map[string][]string
 	ParamStore  map[string]string
 	QueryString string
-	Message     interface {
+	Request     interface {
 		Content() io.ReadCloser
 		Context() context.Context
 		Subject() string
@@ -17,7 +17,14 @@ type (
 		ID() string
 		Method() string
 		Params() ParamStore
+		Pattern() Pattern
 		QueryString() QueryString
+		Headers() KeyValue
+	}
+	Response interface {
+		Content() []byte
+		Context() context.Context
+		Status() int
 		Headers() KeyValue
 	}
 )
