@@ -128,7 +128,7 @@ func (r request) Params() vapor.ParamStore {
 }
 
 func (r request) QueryString() vapor.QueryString {
-	return vapor.QueryString(r.Msg.Header.Get("X-QueryString"))
+	return vapor.QueryString(r.Msg.Header.Get("X-Q"))
 }
 
 func (r request) ID() string {
