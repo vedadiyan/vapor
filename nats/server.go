@@ -29,6 +29,10 @@ type (
 	}
 )
 
+func New(opts ...nats.Option) vapor.Server {
+	return &server{options: opts}
+}
+
 func (srv *server) Listen(addr string) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
