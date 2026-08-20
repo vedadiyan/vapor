@@ -2,10 +2,14 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/vedadiyan/vapor"
@@ -138,4 +142,64 @@ func (r request) Headers() vapor.KeyValue {
 
 func newRequest(r *http.Request, pattern vapor.Pattern, tokens map[string]int) vapor.Request {
 	return &request{Request: r, pattern: pattern, tokens: tokens}
+}
+
+func WithReadTimeout(timeout time.Duration) Option {
+	return func(s *http.Server) {
+		s.ReadTimeout = timeout
+	}
+}
+
+func WithReadHeaderTimeout(timeout time.Duration) Option {
+	return func(s *http.Server) {
+		s.ReadHeaderTimeout = timeout
+	}
+}
+
+func WithWriteTimeout(timeout time.Duration) Option {
+	return func(s *http.Server) {
+		s.WriteTimeout = timeout
+	}
+}
+
+func WithIdleTimeout(timeout time.Duration) Option {
+	return func(s *http.Server) {
+		s.IdleTimeout = timeout
+	}
+}
+
+func WithMaxHeaderBytes(n int) Option {
+	return func(s *http.Server) {
+		s.MaxHeaderBytes = n
+	}
+}
+
+func WithErrorLog(logger *log.Logger) Option {
+	return func(s *http.Server) {
+		s.ErrorLog = logger
+	}
+}
+
+func WithTLSConfig(config *tls.Config) Option {
+	return func(s *http.Server) {
+		s.TLSConfig = config
+	}
+}
+
+func WithBaseContext(fn func(net.Listener) context.Context) Option {
+	return func(s *http.Server) {
+		s.BaseContext = fn
+	}
+}
+
+func WithConnContext(fn func(ctx context.Context, c net.Conn) context.Context) Option {
+	return func(s *http.Server) {
+		s.ConnContext = fn
+	}
+}
+
+func WithConnState(fn func(net.Conn, http.ConnState)) Option {
+	return func(s *http.Server) {
+		s.ConnState = fn
+	}
 }
