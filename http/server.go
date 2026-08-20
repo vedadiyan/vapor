@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"sync"
 	"unsafe"
@@ -25,14 +24,14 @@ type (
 	}
 )
 
-func (srv *server) Listen(addr net.Addr) error {
+func (srv *server) Listen(addr string) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
 	if srv.server != nil {
 		return fmt.Errorf("server is already running")
 	}
 	server := &http.Server{
-		Addr:    addr.String(),
+		Addr:    addr,
 		Handler: &srv.mux,
 	}
 	srv.server = server

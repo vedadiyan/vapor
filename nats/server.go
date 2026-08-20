@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"sync"
 	"unsafe"
 
@@ -29,13 +28,13 @@ type (
 	}
 )
 
-func (srv *server) Listen(addr net.Addr) error {
+func (srv *server) Listen(addr string) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
 	if srv.server != nil {
 		return fmt.Errorf("server is already running")
 	}
-	conn, err := nats.Connect(addr.String(), srv.options...)
+	conn, err := nats.Connect(addr, srv.options...)
 	if err != nil {
 		return err
 	}
