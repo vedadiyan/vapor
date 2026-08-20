@@ -7,9 +7,6 @@ import (
 	"testing"
 
 	"github.com/vedadiyan/vapor"
-
-	"github.com/gin-gonic/gin"
-	"github.com/gofiber/fiber/v2"
 )
 
 func BenchmarkHandleFunc(b *testing.B) {
@@ -226,70 +223,5 @@ func BenchmarkNativeFullRequest(b *testing.B) {
 
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
-	}
-}
-
-func BenchmarkGinFullRequest(b *testing.B) {
-	gin.SetMode(gin.ReleaseMode)
-
-	r := gin.New()
-
-	r.GET("/users/:id", func(c *gin.Context) {
-		_ = c.Request.Method
-		_ = c.GetHeader("X-ID")
-		_ = c.Param("id")
-		_ = c.Request.URL.RawQuery
-		_ = c.Request.Header
-
-		c.String(http.StatusOK, "hello")
-	})
-
-	b.ReportAllocs()
-
-	for b.Loop() {
-		req := httptest.NewRequest(
-			http.MethodGet,
-			"/users/42?foo=bar",
-			nil,
-		)
-		req.Header.Set("X-ID", "abc")
-		req.Header.Set("X-Method", "GET")
-
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
-	}
-}
-func BenchmarkFiberFullRequest(b *testing.B) {
-	app := fiber.New()
-
-	app.Get("/users/:id", func(c *fiber.Ctx) error {
-		_ = c.Method()
-		_ = c.Get("X-ID")
-		_ = c.Params("id")
-		_ = c.Context().QueryArgs().String()
-
-		return c.Status(http.StatusOK).SendString("hello")
-	})
-
-	req := httptest.NewRequest(
-		http.MethodGet,
-		"/users/42?foo=bar",
-		nil,
-	)
-	req.Header.Set("X-ID", "abc")
-	req.Header.Set("X-Method", "GET")
-
-	b.ReportAllocs()
-
-	for b.Loop() {
-		rec := httptest.NewRecorder()
-
-		resp, err := app.Test(req, -1)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		_, _ = io.Copy(rec, resp.Body)
-		_ = resp.Body.Close()
 	}
 }
