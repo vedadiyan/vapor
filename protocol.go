@@ -6,6 +6,7 @@ import (
 )
 
 type (
+	Type        int
 	KeyValue    map[string][]string
 	ParamStore  map[string]string
 	QueryString string
@@ -13,7 +14,7 @@ type (
 		Content() io.ReadCloser
 		Context() context.Context
 		Subject() string
-		Type() string
+		Type() Type
 		ID() string
 		Method() string
 		Params() ParamStore
@@ -27,4 +28,9 @@ type (
 		Status() int
 		Headers() KeyValue
 	}
+)
+
+const (
+	TypePublishOnly Type = iota
+	TypeRequiresReply
 )

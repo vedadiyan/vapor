@@ -76,8 +76,8 @@ func (r request) Context() context.Context {
 	return r.Request.Context()
 }
 
-func (r request) Type() string {
-	return r.Header.Get("X-Type")
+func (r request) Type() vapor.Type {
+	return 0
 }
 
 func (r request) Subject() string {

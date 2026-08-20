@@ -76,7 +76,11 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 				out := &nats.Msg{
 					Header: make(nats.Header),
 				}
-				res := fn(newRequest(msg, pattern, tokens))
+				req := newRequest(msg, pattern, tokens)
+				res := fn(req)
+				if req.Type() == vapor.TypePublishOnly {
+					return
+				}
 
 				for key, values := range res.Headers() {
 					for _, value := range values {
@@ -105,8 +109,11 @@ func (r request) Context() context.Context {
 	return r.ctx
 }
 
-func (r request) Type() string {
-	return r.Header.Get("X-Type")
+func (r request) Type() vapor.Type {
+	if len(r.Msg.Reply) != 0 {
+		return vapor.TypeRequiresReply
+	}
+	return vapor.TypePublishOnly
 }
 
 func (r request) Subject() string {
