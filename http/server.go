@@ -90,7 +90,10 @@ func (r request) Context() context.Context {
 }
 
 func (r request) Type() vapor.Type {
-	return 0
+	if r.Request.Header.Get("X-PublishOnly") == "true" {
+		return vapor.TypePublishOnly
+	}
+	return vapor.TypeRequiresReply
 }
 
 func (r request) Subject() string {
