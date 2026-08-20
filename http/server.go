@@ -65,7 +65,7 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
 		res := fn(newRequest(r, pattern, tokens))
 		if res == nil {
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(http.StatusAccepted)
 			return
 		}
 
