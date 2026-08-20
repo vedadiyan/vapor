@@ -18,6 +18,7 @@ type (
 		options       []nats.Option
 		subscriptions []func(*nats.Conn) error
 		mut           sync.Mutex
+		wg            sync.WaitGroup
 	}
 
 	request struct {
@@ -45,6 +46,7 @@ func (srv *server) Listen(addr string) error {
 		}
 	}
 	srv.server = conn
+	srv.wg.Add(1)
 	return nil
 }
 
@@ -53,7 +55,9 @@ func (srv *server) Shutdown() error {
 	if srv.server == nil {
 		return nil
 	}
-
+	defer func() {
+		srv.wg.Done()
+	}()
 	conn := srv.server
 	srv.server = nil
 	srv.mut.Unlock()
@@ -62,6 +66,10 @@ func (srv *server) Shutdown() error {
 	}
 	conn.Close()
 	return nil
+}
+
+func (srv *server) Wait() {
+	srv.wg.Wait()
 }
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {

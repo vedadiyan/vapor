@@ -10,6 +10,7 @@ type (
 		Listen(addr string) error
 		Shutdown() error
 		HandleFunc(Pattern, func(Request) Response) error
+		Wait()
 	}
 )
 

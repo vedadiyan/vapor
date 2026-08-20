@@ -16,6 +16,7 @@ type (
 		mux    http.ServeMux
 		server *http.Server
 		mut    sync.Mutex
+		wg     sync.WaitGroup
 	}
 
 	request struct {
@@ -36,6 +37,7 @@ func (srv *server) Listen(addr string) error {
 	}
 	srv.server = server
 	go server.ListenAndServe()
+	srv.wg.Add(1)
 	return nil
 }
 
@@ -44,10 +46,17 @@ func (srv *server) Shutdown() error {
 	if srv.server == nil {
 		return nil
 	}
+	defer func() {
+		srv.wg.Done()
+	}()
 	ref := srv.server
 	srv.server = nil
 	srv.mut.Unlock()
 	return ref.Shutdown(context.Background())
+}
+
+func (srv *server) Wait() {
+	srv.wg.Wait()
 }
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {
