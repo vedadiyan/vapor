@@ -67,15 +67,11 @@ func (srv *server) Listen(addr string) error {
 
 	go func() {
 		defer srv.wg.Done()
-		go func() {
-			defer srv.wg.Done()
-
-			if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-				if server.ErrorLog != nil {
-					server.ErrorLog.Printf("server error: %v", err)
-				}
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			if server.ErrorLog != nil {
+				server.ErrorLog.Printf("server error: %v", err)
 			}
-		}()
+		}
 	}()
 
 	return nil
