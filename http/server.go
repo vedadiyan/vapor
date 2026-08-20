@@ -39,7 +39,7 @@ func (srv *server) Listen(addr string) error {
 	return nil
 }
 
-func (srv *server) Shutdown(ctx context.Context) error {
+func (srv *server) Shutdown() error {
 	srv.mut.Lock()
 	if srv.server == nil {
 		return nil
@@ -47,7 +47,7 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	ref := srv.server
 	srv.server = nil
 	srv.mut.Unlock()
-	return ref.Shutdown(ctx)
+	return ref.Shutdown(context.Background())
 }
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {

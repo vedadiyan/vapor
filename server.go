@@ -1,7 +1,6 @@
 package vapor
 
 import (
-	"context"
 	"strings"
 )
 
@@ -9,7 +8,7 @@ type (
 	Pattern string
 	Server  interface {
 		Listen(addr string) error
-		Shutdown(context.Context) error
+		Shutdown() error
 		HandleFunc(Pattern, func(Request) Response) error
 	}
 )
