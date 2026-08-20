@@ -12,11 +12,13 @@ import (
 )
 
 type (
+	Option func(*http.Server)
 	server struct {
-		mux    http.ServeMux
-		server *http.Server
-		mut    sync.Mutex
-		wg     sync.WaitGroup
+		mux     http.ServeMux
+		server  *http.Server
+		mut     sync.Mutex
+		wg      sync.WaitGroup
+		options []Option
 	}
 
 	request struct {
@@ -25,6 +27,10 @@ type (
 		tokens  map[string]int
 	}
 )
+
+func New(opts ...Option) vapor.Server {
+	return &server{options: opts}
+}
 
 func (srv *server) Listen(addr string) error {
 	srv.mut.Lock()
@@ -35,6 +41,9 @@ func (srv *server) Listen(addr string) error {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: &srv.mux,
+	}
+	for _, opt := range srv.options {
+		opt(server)
 	}
 	srv.server = server
 	go server.ListenAndServe()
