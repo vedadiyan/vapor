@@ -22,6 +22,7 @@ type (
 	request struct {
 		*http.Request
 		pattern vapor.Pattern
+		tokens  map[string]int
 	}
 )
 
@@ -60,8 +61,9 @@ func (srv *server) Wait() {
 }
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {
+	tokens := pattern.Tokens()
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
-		res := fn(newRequest(r, pattern))
+		res := fn(newRequest(r, pattern, tokens))
 		if res == nil {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -103,7 +105,11 @@ func (r request) ID() string {
 }
 
 func (r request) Params() vapor.ParamStore {
-	return nil
+	out := make(vapor.ParamStore)
+	for key := range r.tokens {
+		out[key] = r.Request.PathValue(key)
+	}
+	return out
 }
 
 func (r request) Pattern() vapor.Pattern {
@@ -118,6 +124,6 @@ func (r request) Headers() vapor.KeyValue {
 	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
 }
 
-func newRequest(r *http.Request, pattern vapor.Pattern) vapor.Request {
-	return &request{Request: r, pattern: pattern}
+func newRequest(r *http.Request, pattern vapor.Pattern, tokens map[string]int) vapor.Request {
+	return &request{Request: r, pattern: pattern, tokens: tokens}
 }
