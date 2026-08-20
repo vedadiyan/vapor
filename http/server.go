@@ -90,10 +90,19 @@ func (r request) Subject() string {
 	return r.Pattern
 }
 
+func (r request) Method() string {
+	return r.Request.Method
+}
 func (r request) ID() string {
 	return r.Header.Get("X-ID")
 }
 
+func (r request) Params() vapor.ParamStore {
+	return nil
+}
+func (r request) QueryString() vapor.QueryString {
+	return vapor.QueryString(r.Request.URL.RawQuery)
+}
 func (r request) Headers() vapor.KeyValue {
 	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
 }
