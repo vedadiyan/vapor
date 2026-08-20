@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -8,9 +9,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/vedadiyan/vapor"
 )
@@ -27,8 +28,10 @@ type (
 
 	request struct {
 		*http.Request
-		pattern vapor.Pattern
-		tokens  map[string]int
+		pattern     vapor.Pattern
+		tokens      map[string]int
+		header      vapor.KeyValue
+		headersOnce sync.Once
 	}
 )
 
@@ -95,7 +98,7 @@ func (srv *server) Wait() {
 
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {
 	tokens := pattern.Tokens()
-	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
+	srv.mux.HandleFunc(toGoPattern(pattern), func(w http.ResponseWriter, r *http.Request) {
 		res := fn(newRequest(r, pattern, tokens))
 		if res == nil {
 			w.WriteHeader(http.StatusAccepted)
@@ -114,33 +117,33 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 	return nil
 }
 
-func (r request) Content() io.ReadCloser {
+func (r *request) Content() io.ReadCloser {
 	return r.Body
 }
 
-func (r request) Context() context.Context {
+func (r *request) Context() context.Context {
 	return r.Request.Context()
 }
 
-func (r request) Type() vapor.Type {
+func (r *request) Type() vapor.Type {
 	if r.Request.Header.Get("X-PublishOnly") == "true" {
 		return vapor.TypePublishOnly
 	}
 	return vapor.TypeRequiresReply
 }
 
-func (r request) Subject() string {
+func (r *request) Subject() string {
 	return r.RequestURI
 }
 
-func (r request) Method() string {
+func (r *request) Method() string {
 	return r.Request.Method
 }
-func (r request) ID() string {
+func (r *request) ID() string {
 	return r.Header.Get("X-ID")
 }
 
-func (r request) Params() vapor.ParamStore {
+func (r *request) Params() vapor.ParamStore {
 	out := make(vapor.ParamStore)
 	for key := range r.tokens {
 		out[key] = r.Request.PathValue(key)
@@ -148,16 +151,24 @@ func (r request) Params() vapor.ParamStore {
 	return out
 }
 
-func (r request) Pattern() vapor.Pattern {
+func (r *request) Pattern() vapor.Pattern {
 	return r.pattern
 }
 
-func (r request) QueryString() vapor.QueryString {
+func (r *request) QueryString() vapor.QueryString {
 	return vapor.QueryString(r.Request.URL.RawQuery)
 }
 
-func (r request) Headers() vapor.KeyValue {
-	return *(*vapor.KeyValue)(unsafe.Pointer(&r.Header))
+func (r *request) Headers() vapor.KeyValue {
+	r.headersOnce.Do(func() {
+		r.header = make(vapor.KeyValue, len(r.Request.Header))
+
+		for key, values := range r.Request.Header {
+			r.header[strings.ToLower(key)] = append([]string(nil), values...)
+		}
+	})
+
+	return r.header
 }
 
 func newRequest(r *http.Request, pattern vapor.Pattern, tokens map[string]int) vapor.Request {
@@ -222,4 +233,21 @@ func WithConnState(fn func(net.Conn, http.ConnState)) Option {
 	return func(s *http.Server) {
 		s.ConnState = fn
 	}
+}
+
+func toGoPattern(pattern vapor.Pattern) string {
+	builder := bytes.NewBufferString("")
+
+	for i, seg := range pattern.Segments() {
+		if i > 0 {
+			builder.WriteRune('/')
+		}
+		if val, ok := strings.CutPrefix(seg, ":"); ok {
+			builder.WriteString(fmt.Sprintf("{%s}", val))
+			continue
+		}
+		builder.WriteString(seg)
+	}
+
+	return builder.String()
 }
