@@ -76,8 +76,8 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 				out := &nats.Msg{
 					Header: make(nats.Header),
 				}
-				req := newRequest(msg, pattern, tokens)
-				res := fn(req)
+
+				res := fn(newRequest(msg, pattern, tokens))
 				if res == nil {
 					return
 				}
