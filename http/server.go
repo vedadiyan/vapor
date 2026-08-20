@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
 	"unsafe"
 
@@ -52,9 +51,9 @@ func (srv *server) Shutdown(ctx context.Context) error {
 	return ref.Shutdown(ctx)
 }
 
-func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request, ...vapor.Option) vapor.Response) error {
+func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapor.Response) error {
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
-		res := fn(newRequest(r, pattern), WithRequestURI(r.URL))
+		res := fn(newRequest(r, pattern))
 		if res == nil {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -113,10 +112,4 @@ func (r request) Headers() vapor.KeyValue {
 
 func newRequest(r *http.Request, pattern vapor.Pattern) vapor.Request {
 	return &request{Request: r, pattern: pattern}
-}
-
-func WithRequestURI(uri *url.URL) vapor.Option {
-	return func(o *vapor.Options) {
-		o.URI = uri
-	}
 }

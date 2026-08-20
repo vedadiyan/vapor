@@ -3,20 +3,15 @@ package vapor
 import (
 	"context"
 	"net"
-	"net/url"
 	"strings"
 )
 
 type (
 	Pattern string
-	Options struct {
-		URI *url.URL
-	}
-	Option func(*Options)
-	Server interface {
+	Server  interface {
 		Listen(addr net.Addr) error
 		Shutdown(context.Context) error
-		HandleFunc(Pattern, func(Request, ...Option) Response) error
+		HandleFunc(Pattern, func(Request) Response) error
 	}
 )
 
