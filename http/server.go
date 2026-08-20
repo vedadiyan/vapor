@@ -80,6 +80,7 @@ func (srv *server) Listen(addr string) error {
 func (srv *server) Shutdown() error {
 	srv.mut.Lock()
 	if srv.server == nil {
+		srv.mut.Unlock()
 		return nil
 	}
 	ref := srv.server
