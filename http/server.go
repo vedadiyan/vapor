@@ -39,19 +39,45 @@ func New(opts ...Option) vapor.Server {
 func (srv *server) Listen(addr string) error {
 	srv.mut.Lock()
 	defer srv.mut.Unlock()
+
 	if srv.server != nil {
 		return fmt.Errorf("server is already running")
 	}
+
 	server := &http.Server{
 		Addr:    addr,
 		Handler: &srv.mux,
 	}
+
 	for _, opt := range srv.options {
 		opt(server)
 	}
+
+	ln, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		return err
+	}
+
+	if server.TLSConfig != nil {
+		ln = tls.NewListener(ln, server.TLSConfig)
+	}
+
 	srv.server = server
-	go server.ListenAndServe()
 	srv.wg.Add(1)
+
+	go func() {
+		defer srv.wg.Done()
+		go func() {
+			defer srv.wg.Done()
+
+			if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+				if server.ErrorLog != nil {
+					server.ErrorLog.Printf("server error: %v", err)
+				}
+			}
+		}()
+	}()
+
 	return nil
 }
 
@@ -60,9 +86,6 @@ func (srv *server) Shutdown() error {
 	if srv.server == nil {
 		return nil
 	}
-	defer func() {
-		srv.wg.Done()
-	}()
 	ref := srv.server
 	srv.server = nil
 	srv.mut.Unlock()
