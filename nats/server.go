@@ -78,7 +78,7 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 				}
 				req := newRequest(msg, pattern, tokens)
 				res := fn(req)
-				if req.Type() == vapor.TypePublishOnly {
+				if res == nil {
 					return
 				}
 

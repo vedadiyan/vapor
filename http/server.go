@@ -55,6 +55,10 @@ func (srv *server) Shutdown(ctx context.Context) error {
 func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request, ...vapor.Option) vapor.Response) error {
 	srv.mux.HandleFunc(string(pattern), func(w http.ResponseWriter, r *http.Request) {
 		res := fn(newRequest(r, pattern), WithRequestURI(r.URL))
+		if res == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 
 		for key, values := range res.Headers() {
 			for _, value := range values {
