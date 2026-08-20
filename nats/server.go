@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 	"unsafe"
 
@@ -98,6 +99,8 @@ func (srv *server) HandleFunc(pattern vapor.Pattern, fn func(vapor.Request) vapo
 						out.Header.Add(key, value)
 					}
 				}
+
+				out.Header.Add("X-Status", strconv.Itoa(res.Status()))
 
 				out.Data = res.Content()
 				_ = msg.RespondMsg(out)
